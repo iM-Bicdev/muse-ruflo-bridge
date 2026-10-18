@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "name": "muse-ruflo-bridge",
+  "displayName": "Muse ↔ Ruflo Bridge",
+  "version": "0.1.1",
+  "description": "A Muse Code skill and command pack for a keyless local Ruflo MCP integration.",
+  "compat": {
+    "source": "native",
+    "manifestDir": ".muse-plugin"
+  },
+  "capabilities": {
+    "skills": [
+      {
+        "id": "ruflo-orchestration",
+        "path": "skills/ruflo-orchestration/SKILL.md",
+        "enabledDefault": true
+      }
+    ],
+    "commands": [
+      {
+        "id": "ruflo-health",
+        "path": "commands/ruflo-health.md",
+        "enabledDefault": true
+      },
+      {
+        "id": "ruflo-swarm-plan",
+        "path": "commands/ruflo-swarm-plan.md",
+        "enabledDefault": true
+      },
+      {
+        "id": "ruflo-replica-plan",
+        "path": "commands/ruflo-replica-plan.md",
+        "enabledDefault": true
+      }
+    ],
+    "hooks": [],
+    "mcpServers": [],
+    "reminders": []
+  }
+}

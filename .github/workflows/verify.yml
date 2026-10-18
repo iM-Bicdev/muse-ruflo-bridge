@@ -1,0 +1,25 @@
+name: verify
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate Muse plugin manifest
+        run: python3 -m json.tool .muse-plugin/plugin.json >/dev/null
+      - name: Test conservative MCP merge utility
+        run: python3 -m unittest discover -s tests -v
+      - name: Check shell syntax
+        run: |
+          bash -n install.sh
+          bash -n uninstall.sh

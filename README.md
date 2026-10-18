@@ -1,114 +1,184 @@
 # Muse ↔ Ruflo Bridge
 
-اتصال **Ruflo** به **Muse Code** با نصب یک‌خطی، بدون تنظیم یا ذخیره‌ی کلید APIِ مدل‌های دیگر.
+[![Verify](https://github.com/iM-Bicdev/muse-ruflo-bridge/actions/workflows/verify.yml/badge.svg)](https://github.com/iM-Bicdev/muse-ruflo-bridge/actions/workflows/verify.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> این پروژه «مدل رایگان» یا راه دورزدن احراز هویت نیست. Muse Code باید با روش رسمی Meta وارد شده باشد؛ همان نشستِ احراز‌شده مدل را اجرا می‌کند. Ruflo به‌صورت یک MCP محلی برای حافظه، هماهنگی وظایف، workflow و ابزارهای محلی اضافه می‌شود. هیچ `ANTHROPIC_API_KEY`، `OPENAI_API_KEY` یا `GOOGLE_API_KEY` در این پروژه خوانده، تولید یا ذخیره نمی‌شود.
+A conservative, project-local bridge that connects [Meta Muse Code](https://dev.meta.ai/docs/muse-code) to Ruflo's local MCP server. It adds a Muse-native skill package, a pinned Ruflo MCP registration, and safe installation/removal tooling—without writing third-party model-provider API keys into your project.
 
-## چرا Bridge و نه reverse engineering؟
+> **Status: pre-release.** The bridge is tested for configuration safety. End-to-end runtime validation requires a host with Muse Code, Node.js 20+, and access to the pinned Ruflo npm release.
 
-Ruflo و replica-skill هر دو با مجوز MIT منتشر شده‌اند. بنابراین به‌جای مهندسی معکوسِ کد Ruflo، این پروژه یک **یکپارچه‌سازی مستقیم و قابل‌ممیزی** با Ruflo فراهم می‌کند و attribution را حفظ می‌کند. روش feature-parity / clean-room در skill موجود است، اما فقط برای بازسازیِ قانونیِ رفتارهای عمومی و مجاز کاربرد دارد؛ نه کپی کد، API خصوصی، دارایی، داده یا برند دیگران.
+## What this project is
 
-## آنچه نصب می‌شود
+Muse ↔ Ruflo Bridge treats **Muse Code as the authenticated model and agent host** and **Ruflo as a local orchestration and MCP capability layer**. The integration installs a small Muse Code content plugin and adds an optional `ruflo` stdio server to the current project's `.mcp.json`.
 
-1. یک native plugin سبک برای Muse Code با skill و سه فرمان:
-   - `/muse-ruflo-bridge:ruflo-health`
-   - `/muse-ruflo-bridge:ruflo-swarm-plan <goal>`
-   - `/muse-ruflo-bridge:ruflo-replica-plan <public-url-or-product>`
-2. یک فایل project-local به نام `.mcp.json` که فقط این MCP محلی را ثبت می‌کند:
+```text
+Muse Code session
+  ├─ authenticated through Meta's official sign-in flow
+  ├─ loads the Bridge skill and prompt commands
+  └─ starts trusted project MCP configuration
+       └─ npx --yes ruflo@<pinned-version> --no-update mcp start
+            └─ local memory, task, workflow, and supported Ruflo MCP tools
+```
+
+## What this project is not
+
+- It is **not** a replacement model, a method to bypass authentication, or a way to evade model quotas or subscriptions.
+- It does **not** request, create, export, or store `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, or other model-provider secrets.
+- It is **not** a reimplementation or a source-level clone of Ruflo. Ruflo is integrated as its published MIT-licensed package.
+- It does **not** guarantee every Ruflo plugin, cloud feature, provider integration, or optional dependency will be available in every Muse Code environment.
+
+## Features
+
+- **Muse-native content plugin** with one orchestration skill and three slash commands.
+- **Pinned upstream runtime**: uses an explicit Ruflo version rather than `latest`.
+- **Project-local MCP configuration**: no global mutation of Muse Code settings is required.
+- **Conservative configuration merge**: refuses to overwrite a different `mcpServers.ruflo` entry.
+- **Safe removal**: removes only the exact configuration entry installed by this bridge.
+- **No runtime auto-approval**: the plugin declares no executable hooks, plugin MCP server, or reminders.
+- **Clean-room planning guidance** for lawful feature-parity work using public and authorized sources only.
+
+## Requirements
+
+| Requirement | Version / notes |
+|---|---|
+| Muse Code | Installed and signed in through Meta's official flow |
+| Node.js | 20 or later |
+| npm and npx | Available on `PATH` |
+| Python | Python 3 for the configuration utility |
+| Git | Required for the one-line clone-and-install workflow |
+| Network | Required on first MCP startup if the pinned npm package is not cached |
+
+## Quick start
+
+Run the following command from the root of the project you want to open with Muse Code:
+
+```bash
+git clone https://github.com/iM-Bicdev/muse-ruflo-bridge.git .muse-ruflo-bridge && bash .muse-ruflo-bridge/install.sh
+```
+
+The installer validates and installs the content plugin, then adds an exact `ruflo` MCP entry to the target project's `.mcp.json`. It **does not** start Ruflo during installation and does not write secrets.
+
+Next:
+
+1. Review the generated or updated `.mcp.json`.
+2. Start a **new** Muse Code session from the target workspace.
+3. Trust the workspace only after reviewing its contents.
+4. Open `/mcp` and verify that the `ruflo` server is live.
+5. Run `/muse-ruflo-bridge:ruflo-health` for a read-only integration review.
+
+See [Installation](docs/INSTALLATION.md) for flags, scope choices, upgrades, and troubleshooting.
+
+## Installed components
+
+### Muse Code content plugin
+
+| Capability | Invocation | Purpose |
+|---|---|---|
+| Skill | `ruflo-orchestration` | Guides bounded multi-step work, memory discipline, verification, and safe tool discovery. |
+| Command | `/muse-ruflo-bridge:ruflo-health` | Produces a read-only integration status review. |
+| Command | `/muse-ruflo-bridge:ruflo-swarm-plan <goal>` | Creates a decision-complete multi-agent execution plan without changing files. |
+| Command | `/muse-ruflo-bridge:ruflo-replica-plan <target>` | Produces a lawful clean-room feature-parity plan from authorized evidence. |
+
+### Project MCP entry
+
+By default, the installer writes this exact entry under `mcpServers.ruflo`:
 
 ```json
 {
-  "mcpServers": {
-    "ruflo": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["--yes", "ruflo@3.56.10", "--no-update", "mcp", "start"],
-      "required": false,
-      "startup_timeout_sec": 90,
-      "tool_timeout_sec": 300
-    }
-  }
+  "type": "stdio",
+  "command": "npx",
+  "args": ["--yes", "ruflo@3.56.10", "--no-update", "mcp", "start"],
+  "required": false,
+  "startup_timeout_sec": 90,
+  "tool_timeout_sec": 300
 }
 ```
 
-نسخه‌ی Ruflo عمداً pin شده است؛ نصب‌کننده هرگز یک ورودی `ruflo` موجود اما متفاوت را overwrite نمی‌کند. Muse Code برای اجرای فایل project-local از شما trust می‌خواهد و MCP را فقط در session جدید بالا می‌آورد.
+The entry is optional by design: if Ruflo cannot start, Muse Code remains usable and `/mcp` reports the failure. The bridge never overwrites an existing, different Ruflo entry.
 
-## پیش‌نیازها
+## Configuration and operations
 
-- [Muse Code](https://dev.meta.ai/docs/muse-code) نصب و با روش رسمی Meta وارد شده باشد.
-- Node.js 20 یا جدیدتر، npm، npx، Python 3 و Git.
-- یک workspace محلی که مجاز هستید به آن trust بدهید.
-- دسترسی شبکه در اولین session برای دریافت نسخه‌ی pin‌شده‌ی `ruflo` از npm، مگر آن‌که npm cache قبلاً آن را داشته باشد.
-
-Muse Code از MCP با transport `stdio` و فایل `.mcp.json` پشتیبانی می‌کند. این bridge از همان مسیر رسمی استفاده می‌کند.
-
-## نصب با یک دستور
-
-بعد از انتشار ریپو، این یک خط را در **ریشه‌ی پروژه‌ای که می‌خواهید Muse Code روی آن کار کند** اجرا کنید:
+### Validate the configuration
 
 ```bash
-git clone https://github.com/YOUR_GITHUB_ORG/muse-ruflo-bridge.git .muse-ruflo-bridge && bash .muse-ruflo-bridge/install.sh
-```
-
-برای نصب از checkout محلی:
-
-```bash
-bash /path/to/muse-ruflo-bridge/install.sh --project /path/to/your-project
-```
-
-نصب‌کننده فقط package را validate/install می‌کند و `.mcp.json` را با یک merge محافظه‌کارانه می‌نویسد؛ Ruflo را در زمان نصب اجرا نمی‌کند و هیچ secretی نمی‌خواهد.
-
-سپس:
-
-1. محتوای `.mcp.json` را بازبینی کنید.
-2. در همان workspace یک **session جدید** از `muse` شروع کنید.
-3. فقط اگر repository را بازبینی کرده‌اید، درخواست Trust را تأیید کنید.
-4. با `/mcp` وضعیت server را ببینید.
-5. در chat اجرا کنید: `/muse-ruflo-bridge:ruflo-health`
-
-## بررسی و حذف
-
-```bash
-# فقط بررسی ورودی MCP
 python3 .muse-ruflo-bridge/scripts/merge_mcp.py --project . --check
+```
 
-# حذف محافظه‌کارانه: فقط دقیقاً همان ورودیِ نصب‌شده را پاک می‌کند
+### Install against another project or pin another Ruflo release
+
+```bash
+bash .muse-ruflo-bridge/install.sh \
+  --project /path/to/project \
+  --version 3.56.10
+```
+
+Review release notes and source changes before changing the pinned version.
+
+### Remove the bridge
+
+```bash
 bash .muse-ruflo-bridge/uninstall.sh --project .
 ```
 
-## دامنه‌ی قابلیت‌ها و محدودیت صادقانه
+Removal is deliberately conservative: it refuses to delete a `ruflo` configuration that differs from the exact entry installed by this project.
 
-| قابلیت | وضعیت در این Bridge | توضیح |
+## Capability scope
+
+The bridge is an integration layer, not a feature clone. The actual tools available to Muse Code are discovered from the live Ruflo MCP server at session startup and may vary by Ruflo release, operating system, optional dependencies, and the user's approved environment.
+
+| Area | Bridge status | Notes |
 |---|---|---|
-| Muse Code model/session | پشتیبانی‌شده | با login/plan رسمی Muse Code، نه API key در repo |
-| Ruflo MCP محلی، حافظه، task/workflow و ابزارهای expose شده | پشتیبانی‌شده، وابسته به نسخه‌ی Ruflo | ابزارهای واقعاً موجود را در `/mcp` کشف کنید |
-| Skill برای plan، swarm و clean-room | پشتیبانی‌شده | هیچ ابزار یا نام tool ساختگی ادعا نمی‌کند |
-| تمام افزونه‌های Ruflo که local هستند | best-effort | به OS، dependency و tool inventory نسخه‌ی pin‌شده وابسته‌اند |
-| Providerهای ابری دیگر، Cloud agents، OAuth connectorها، داده‌ی تجاری | نیازمند auth رسمی خودشان | این Bridge کلید یا auth را دور نمی‌زند |
-| «۱۰۰٪ کارایی» | قابل ادعا نیست | فقط پس از feature matrix و تست end-to-end برای scope مشخص قابل اندازه‌گیری است |
+| Muse Code session and model host | Supported | Uses official Muse Code authentication; no provider key is configured by this project. |
+| Ruflo local stdio MCP registration | Supported | Pinned, optional, project-local configuration. |
+| Ruflo tool discovery | Supported at session startup | Inspect `/mcp`; do not assume a tool exists until it is advertised. |
+| Local orchestration, memory, and task workflows | Upstream-dependent | Available only when exposed by the pinned Ruflo server on the host. |
+| Ruflo cloud providers, managed agents, OAuth connectors, commercial data | Out of scope by default | Require the provider's own documented authentication and consent flow. |
+| Full Ruflo product parity | Not claimed | See [Compatibility](docs/COMPATIBILITY.md). |
 
-Ruflo یک orchestrator است، نه خود مدل. Muse Code نیز orchestration چندعاملی خود را دارد. ترکیب درست این دو این است که **Muse Code مدل/agent host** باشد و Ruflo **ابزارهای local orchestration/memory** را از طریق MCP ارائه دهد. اجرای هر provider cloud خارج از Muse Code، ذاتاً نیازمند credential رسمی همان provider است.
+## Security model
 
-## امنیت
+The most important decision is whether to trust the workspace. A project `.mcp.json` can start a local program, so inspect it before granting trust in Muse Code.
 
-- `install.sh` هیچ API key یا متغیر provider را export نمی‌کند.
-- Muse Code برای MCP stdio محیط child را محدود می‌کند؛ این config هیچ `env` secretی پاس نمی‌دهد.
-- plugin فقط content capability دارد (skill/command) و هیچ hook یا MCP runtime را auto-approve نمی‌کند.
-- `.mcp.json` یک executable configuration است. قبل از Trust کردن workspace، آن را بخوانید.
-- نسخه‌ی Ruflo pin شده است. برای upgrade، diff و release notes را بررسی کرده و سپس با `--version` نسخه‌ی دقیق جدید را نصب کنید.
-- برای جزئیات، [docs/SECURITY.md](docs/SECURITY.md) را ببینید.
+- The bridge uses a pinned npm package version, never `latest`.
+- The MCP entry contains no `env` block and passes no secrets.
+- The Muse plugin contains only skills and commands; it cannot execute hooks or start an MCP process on its own.
+- Normal Muse Code approvals still govern tool calls.
+- Do not expose the default local stdio MCP server as a network service without a separate authentication and threat-model review.
 
-## توسعه و تست
+Read the complete [security model](docs/SECURITY.md) before deploying the bridge in a shared or production environment.
+
+## Clean-room feature-parity work
+
+The `ruflo-replica-plan` command follows a clean-room workflow inspired by the requested `replica-skill` project. Use it only with public material and accounts you are authorized to use. Do not copy proprietary source, private APIs, credentials, assets, trademarks, copyrighted copy, paywalled content, or another user's data.
+
+Ruflo itself is MIT licensed, so the correct route for Ruflo-specific work is direct, attributed integration—not reverse engineering. See [Replica-skill note](docs/REPLICA-SKILL-NOTE.md).
+
+## Development
 
 ```bash
+# Run repository tests
 python3 -m unittest discover -s tests -v
-python3 scripts/merge_mcp.py --project . --check
-# روی ماشینی که Muse Code نصب است:
+
+# Check shell syntax
+bash -n install.sh
+bash -n uninstall.sh
+
+# Validate the plugin on a machine with Muse Code installed
 muse plugins validate .
 ```
 
-برای بررسی integration واقعی، Muse Code و Node 20 لازم است. testهای repository عمداً Ruflo را اجرا یا هیچ model/provider APIای را call نمی‌کنند.
+The automated test suite covers safe MCP configuration creation, idempotency, non-destructive behavior, removal, and invalid JSON handling. It intentionally does not start Ruflo or make a model-provider request.
 
-## مجوز و attribution
+## Documentation
 
-این bridge با مجوز [MIT](LICENSE) ارائه می‌شود. Ruflo و replica-skill نیز MIT هستند. [ATTRIBUTIONS.md](ATTRIBUTIONS.md) نسخه‌ها، لینک‌ها و مرزهای attribution را ثبت می‌کند.
+- [Installation and operations](docs/INSTALLATION.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Compatibility and verification status](docs/COMPATIBILITY.md)
+- [Security model](docs/SECURITY.md)
+- [Clean-room / replica-skill note](docs/REPLICA-SKILL-NOTE.md)
+- [Attributions](ATTRIBUTIONS.md)
+- [Changelog](CHANGELOG.md)
+
+## License and attribution
+
+This bridge is available under the [MIT License](LICENSE). It does not vendor upstream source. Ruflo and replica-skill retain their own MIT licenses and copyright notices; see [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
